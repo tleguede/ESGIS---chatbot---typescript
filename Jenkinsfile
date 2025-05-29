@@ -66,15 +66,14 @@ pipeline {
             steps {
                 script {
                     echo "Déploiement du projet..."
-                    withCredentials([
-                        string(credentialsId: 'aws-access-key', variable: 'AWS_ACCESS_KEY_ID'),
-                        string(credentialsId: 'aws-secret-key', variable: 'AWS_SECRET_ACCESS_KEY')
-                    ]) {
-                        sh """
-                            export AWS_DEFAULT_REGION=${AWS_REGION}
-                            npm run deploy:ci -- --stack-name esgis-chatbot-${BRANCH_NAME} --parameter-overrides EnvironmentName=${BRANCH_NAME}
-                        """
-                    }
+                    // Utiliser directement les variables d'environnement du fichier .env injecté précédemment
+                    sh """
+                        # Créer un nom de branche sécurisé pour les ressources AWS
+                        BRANCH_SAFE=\$(echo "${BRANCH_NAME}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g')
+                        
+                        # Déployer avec les variables d'environnement du fichier .env
+                        npm run deploy:ci -- --stack-name esgis-chatbot-\$BRANCH_SAFE --parameter-overrides EnvironmentName=\$BRANCH_SAFE
+                    """
                 }
             }
         }
@@ -83,27 +82,24 @@ pipeline {
             steps {
                 script {
                     echo "Test de l'endpoint déployé..."
-                    withCredentials([
-                        string(credentialsId: 'aws-access-key', variable: 'AWS_ACCESS_KEY_ID'),
-                        string(credentialsId: 'aws-secret-key', variable: 'AWS_SECRET_ACCESS_KEY')
-                    ]) {
-                        sh """
-                            export AWS_DEFAULT_REGION=${AWS_REGION}
-                            
-                            # Récupérer l'URL de l'API
-                            ENDPOINT_URL=\$(aws cloudformation describe-stacks \\
-                                --stack-name esgis-chatbot-${BRANCH_NAME} \\
-                                --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" \\
-                                --output text)
-                            
-                            if [ -n "\$ENDPOINT_URL" ]; then
-                                echo "Testing endpoint: \$ENDPOINT_URL"
-                                curl -s \$ENDPOINT_URL
-                            else
-                                echo "Endpoint URL non trouvé dans les outputs CloudFormation"
-                            fi
-                        """
-                    }
+                    // Utiliser directement les variables d'environnement du fichier .env injecté précédemment
+                    sh """
+                        # Créer un nom de branche sécurisé pour les ressources AWS
+                        BRANCH_SAFE=\$(echo "${BRANCH_NAME}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g')
+                        
+                        # Récupérer l'URL de l'API
+                        ENDPOINT_URL=\$(aws cloudformation describe-stacks \\
+                            --stack-name esgis-chatbot-\$BRANCH_SAFE \\
+                            --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" \\
+                            --output text 2>/dev/null || echo "")
+                        
+                        if [ -n "\$ENDPOINT_URL" ]; then
+                            echo "Testing endpoint: \$ENDPOINT_URL"
+                            curl -s \$ENDPOINT_URL
+                        else
+                            echo "Endpoint URL non trouvé dans les outputs CloudFormation ou stack non déployé"
+                        fi
+                    """
                 }
             }
         }
