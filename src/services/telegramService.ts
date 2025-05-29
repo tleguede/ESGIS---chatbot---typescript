@@ -99,9 +99,11 @@ export class TelegramService {
       const username = msg.from?.username || 'user';
       const message = msg.text || '';
       
-      // Check if chat is in chat mode
+      // Si le chat n'est pas en mode chat, activer automatiquement le mode chat
+      // pour permettre à l'utilisateur d'interagir sans avoir à utiliser la commande /chat
       if (!this.chatMode.get(chatId)) {
-        return;
+        this.chatMode.set(chatId, true);
+        console.log(`Chat mode automatically activated for chat ID: ${chatId}`);
       }
       
       // Save user message

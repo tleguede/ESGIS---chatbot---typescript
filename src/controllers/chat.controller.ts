@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { TelegramService } from '../services/telegramService';
 import { z } from 'zod';
+import { config } from '../config/env';
 
 /**
  * Controller for handling chat-related endpoints
@@ -40,8 +41,24 @@ export class ChatController {
 
       const { chat_id, username, message } = result.data;
 
+      // Afficher le message en mode développement
+      if (config.server.nodeEnv === 'development') {
+        console.log('\n===== MESSAGE REÇU =====');
+        console.log(`De: ${username} (Chat ID: ${chat_id})`);
+        console.log(`Message: "${message}"`);
+        console.log('========================\n');
+      }
+
       // Process the message
       const reply = await this.telegramService.processMessage(chat_id, username, message);
+
+      // Afficher la réponse en mode développement
+      if (config.server.nodeEnv === 'development') {
+        console.log('\n===== RÉPONSE ENVOYÉE =====');
+        console.log(`À: ${username} (Chat ID: ${chat_id})`);
+        console.log(`Réponse: "${reply}"`);
+        console.log('========================\n');
+      }
 
       // Return the response
       res.status(200).json({

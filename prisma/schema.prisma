@@ -12,7 +12,7 @@ datasource db {
 
 model Message {
   id        Int      @id @default(autoincrement())
-  chatId    Int
+  chatId    BigInt   // Modifié de Int à BigInt pour supporter les grands IDs Telegram
   username  String
   from      String   // 'user' or 'bot'
   content   String
