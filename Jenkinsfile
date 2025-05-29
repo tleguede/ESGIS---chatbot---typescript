@@ -21,10 +21,9 @@ pipeline {
                 script {
                     echo "Installation des outils nécessaires..."
                     sh """
-                        # Installer AWS CLI
+                        # Installer AWS CLI via apt-get
                         apt-get update
-                        apt-get install -y python3-pip unzip curl
-                        pip3 install awscli --upgrade
+                        apt-get install -y awscli
                         aws --version
                     """
                 }
