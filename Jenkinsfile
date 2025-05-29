@@ -13,6 +13,7 @@ pipeline {
     environment {
         BOT_NAME = 'esgis-chatbot'
         AWS_REGION = 'eu-west-3'
+        AWS_CREDENTIALS = credentials('aws-credentials')
     }
 
     stages {
@@ -51,18 +52,35 @@ pipeline {
             }
         }
 
-        stage('Deploy') {
+        stage('Déploiement') {
             steps {
                 script {
-                    echo "Déploiement du projet..."
-                    sh """
-                    sam deploy --resolve-s3 --template-file .aws-sam/build/template.yaml \
-                    --stack-name multi-stack-${BRANCH_NAME} \
-                    --capabilities CAPABILITY_IAM \
-                    --region eu-west-3 \
-                    --parameter-overrides EnvironmentName=${BRANCH_NAME} \
-                    --no-fail-on-empty-changeset
-                    """
+                    // Créer un nom de branche sécurisé pour les ressources AWS
+                    def branchSafe = BRANCH_NAME.toLowerCase().replaceAll(/[^a-z0-9]/, '-')
+                    
+                    withAWS(region: AWS_REGION, credentials: 'aws-credentials') {
+                        // Créer le bucket S3 si nécessaire
+                        sh """
+                            BUCKET_NAME="esgis-chatbot-${branchSafe}"
+                            aws s3api head-bucket --bucket \$BUCKET_NAME 2>/dev/null || aws s3 mb s3://\$BUCKET_NAME
+                        """
+                        
+                        // Package et déploiement CloudFormation
+                        sh """
+                            # Package CloudFormation
+                            aws cloudformation package \\
+                                --template-file infrastructure/template.yaml \\
+                                --s3-bucket esgis-chatbot-${branchSafe} \\
+                                --output-template-file packaged.yaml
+                            
+                            # Déployer CloudFormation
+                            aws cloudformation deploy \\
+                                --template-file packaged.yaml \\
+                                --stack-name esgis-chatbot-${branchSafe} \\
+                                --parameter-overrides EnvironmentName=${branchSafe} \\
+                                --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM
+                        """
+                    }
                 }
             }
         }
@@ -72,13 +90,8 @@ pipeline {
                 script {
                     def branchSafe = BRANCH_NAME.toLowerCase().replaceAll(/[^a-z0-9]/, '-')
                     
-                    withCredentials([
-                        string(credentialsId: 'aws-access-key', variable: 'AWS_ACCESS_KEY_ID'),
-                        string(credentialsId: 'aws-secret-key', variable: 'AWS_SECRET_ACCESS_KEY')
-                    ]) {
+                    withAWS(region: AWS_REGION, credentials: 'aws-credentials') {
                         sh """
-                            export AWS_DEFAULT_REGION=${AWS_REGION}
-                            
                             # Récupérer l'URL de l'API
                             ENDPOINT_URL=\$(aws cloudformation describe-stacks \\
                                 --stack-name esgis-chatbot-${branchSafe} \\
