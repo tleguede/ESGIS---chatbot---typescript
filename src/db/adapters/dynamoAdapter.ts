@@ -2,9 +2,7 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { 
   DynamoDBDocumentClient, 
   PutCommand, 
-  QueryCommand, 
-  UpdateCommand,
-  ScanCommand
+  QueryCommand
 } from '@aws-sdk/lib-dynamodb';
 import { v4 as uuidv4 } from 'uuid';
 import { DatabaseAdapter } from '../dbAdapter';
@@ -160,7 +158,7 @@ export class DynamoAdapter implements DatabaseAdapter {
    * @param limit Nombre maximum de messages à récupérer
    * @returns Tableau de messages de la conversation
    */
-  async getConversationHistoryById(chatId: number, conversationId: string, limit: number = 50): Promise<any[]> {
+  async getConversationHistoryById(chatId: number, conversationId: string, limit: number = 50): Promise<Array<Record<string, unknown>>> {
     try {
       // Utiliser directement la table principale avec la structure de clé optimisée
       const response = await this.client.send(

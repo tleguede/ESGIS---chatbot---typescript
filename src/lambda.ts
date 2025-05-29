@@ -22,7 +22,7 @@ const app = createApp(dbAdapter);
  * @param context Contexte Lambda
  * @returns Réponse API Gateway
  */
-export const handler = async (event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> => {
+export const handler = async (event: APIGatewayProxyEvent, _context: Context): Promise<APIGatewayProxyResult> => {
   try {
     // Log de l'événement en mode développement
     if (config.server.nodeEnv === 'development') {
@@ -33,7 +33,6 @@ export const handler = async (event: APIGatewayProxyEvent, context: Context): Pr
     const path = event.path || '/';
     const method = event.httpMethod || 'GET';
     const body = event.body ? JSON.parse(event.body) : {};
-    const headers = event.headers || {};
 
     // Traiter la requête en fonction du chemin
     if (path === '/chat' && method === 'POST') {

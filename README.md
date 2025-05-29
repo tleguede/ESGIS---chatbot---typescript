@@ -7,8 +7,11 @@ A Node.js backend API that serves as an interface between a Telegram bot and Mis
 - Telegram bot integration with command support
 - Mistral AI integration for natural language processing
 - Conversation history tracking
-- Multiple database adapter support (Memory, Prisma/SQL)
+- Multiple database adapter support (Memory, Prisma/SQL, DynamoDB)
 - RESTful API endpoints
+- Interactive API documentation with Swagger UI
+- AWS Lambda integration for serverless deployment
+- Optimized DynamoDB schema for efficient queries
 
 ## Telegram Bot Commands
 
@@ -23,7 +26,11 @@ A Node.js backend API that serves as an interface between a Telegram bot and Mis
 
 ### `GET /`
 
-Returns basic information about the API.
+Redirects to the Swagger UI documentation.
+
+### `GET /docs`
+
+Interactive API documentation with Swagger UI.
 
 ### `POST /chat`
 
@@ -90,8 +97,20 @@ Ce projet est configuré pour être déployé sur AWS Lambda avec API Gateway et
 
 - **Lambda Function** : Exécute le code du chatbot
 - **API Gateway** : Expose les endpoints HTTP pour interagir avec le chatbot
-- **DynamoDB** : Stocke les conversations et les messages
+- **DynamoDB** : Stocke les conversations et les messages avec un schéma optimisé
 - **Secrets Manager** : Stocke les secrets comme les tokens et clés API
+
+### Schéma DynamoDB optimisé
+
+Le projet utilise un schéma DynamoDB optimisé avec une structure de clés composées :
+
+- **PK (Partition Key)** : `USER#{chatId}` - Regroupe tous les messages d'un même utilisateur
+- **SK (Sort Key)** : `CONV#{conversationId}#MSG#{timestamp}` - Structure hiérarchique pour un accès efficace
+
+Cette conception permet :
+- Des requêtes efficaces sans scans complets
+- Un regroupement naturel des messages par conversation
+- Une réduction des coûts d'opération et de stockage
 
 ### Variables d'environnement AWS
 
@@ -125,11 +144,11 @@ sam local start-api
 
 2. Déployer l'application :
    ```bash
-   sam deploy --guided
+   npm run deploy
    ```
-   Ou avec le Makefile :
+   Ou avec des paramètres spécifiques :
    ```bash
-   make deploy env=dev
+   npm run deploy:ci -- --stack-name esgis-chatbot-dev --parameter-overrides EnvironmentName=dev
    ```
 
 ### Déploiement avec Jenkins
@@ -143,6 +162,8 @@ Le projet inclut un `Jenkinsfile` qui définit le pipeline CI/CD. Le pipeline ef
 5. Construction de l'application
 6. Déploiement sur AWS
 7. Test de l'endpoint déployé
+
+Le Jenkinsfile est configuré pour utiliser directement les commandes npm et ne nécessite pas de Makefile. Il inclut également des vérifications de robustesse pour s'assurer que les outils AWS sont disponibles.
 
 Pour utiliser Jenkins, configurez les credentials suivants dans Jenkins :
 
