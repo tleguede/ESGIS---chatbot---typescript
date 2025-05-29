@@ -1,0 +1,46 @@
+{
+  "name": "telegram-mistral-chatbot",
+  "version": "1.0.0",
+  "description": "Telegram chatbot with Mistral AI integration",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "node dist/index.js",
+    "dev": "nodemon --exec ts-node src/index.ts",
+    "build": "tsc",
+    "lint": "eslint . --ext .ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "telegram",
+    "bot",
+    "chatbot",
+    "mistral",
+    "ai",
+    "typescript",
+    "express"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.8.2",
+    "@types/axios": "^0.9.36",
+    "@types/express": "^5.0.2",
+    "@types/node": "^22.15.24",
+    "axios": "^1.9.0",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "node-telegram-bot-api": "^0.66.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3",
+    "winston": "^3.17.0",
+    "zod": "^3.25.36"
+  },
+  "devDependencies": {
+    "@types/node-telegram-bot-api": "^0.64.8",
+    "nodemon": "^3.1.10",
+    "prisma": "^6.8.2"
+  }
+}
