@@ -1,0 +1,15 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "esgis-chatbot-dev"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket"
+s3_prefix = "esgis-chatbot-dev"
+region = "eu-west-3"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "EnvironmentName=dev"
+
+[default.local_start_api]
+[default.local_start_api.parameters]
+env_vars = "infrastructure/env.json"

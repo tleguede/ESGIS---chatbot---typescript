@@ -10,12 +10,31 @@ pipeline {
         BOT_NAME = 'esgis-chatbot'
         // BOT_TOKEN = credentials('telegram-bot-token')
         NODE_VERSION = '18'
+        PATH = "$PATH:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
     }
 
     stages {
-        stage('Installation des dépendances') {
+        stage('Configuration de l\'environnement') {
             steps {
                 sh "echo Branch name ${BRANCH_NAME}"
+                
+                // Vérifier si Node.js est installé
+                sh '''
+                    if ! command -v node &> /dev/null; then
+                        echo "Node.js n'est pas installé, installation en cours..."
+                        curl -sL https://deb.nodesource.com/setup_18.x | bash -
+                        apt-get update && apt-get install -y nodejs
+                    fi
+                    
+                    # Afficher les versions
+                    node --version
+                    npm --version
+                '''
+            }
+        }
+        
+        stage('Installation des dépendances') {
+            steps {
                 sh "npm install"
             }
         }
