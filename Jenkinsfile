@@ -110,27 +110,43 @@ pipeline {
             }
             steps {
                 script {
-                    // Installer les dépendances nécessaires
+                    // Créer le bucket S3 s'il n'existe pas
                     sh """
-                        pip3 install --user aws-sam-cli
-                        export PATH=$PATH:~/.local/bin
-                        sam --version || echo 'SAM CLI non disponible'
+                        # Configurer les informations d'identification AWS
+                        export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+                        export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+                        export AWS_DEFAULT_REGION=eu-west-3
+                        
+                        # Créer le bucket S3 s'il n'existe pas
+                        BUCKET_NAME="esgis-chatbot-artifacts-${BRANCH_NAME}"
+                        if ! aws s3api head-bucket --bucket $BUCKET_NAME 2>/dev/null; then
+                            echo "Création du bucket S3: $BUCKET_NAME"
+                            aws s3 mb s3://$BUCKET_NAME
+                        fi
                     """
                     
                     // Copier les fichiers du projet dans un répertoire temporaire
                     sh "cp -r . /tmp/project"
                     sh "cd /tmp/project && ls -la"
                     
-                    echo "Construction du package AWS SAM..."
+                    echo "Construction du package CloudFormation..."
                     sh """
                         cd /tmp/project
-                        export PATH=$PATH:~/.local/bin
-                        sam build -t infrastructure/template.yaml || aws cloudformation package --template-file infrastructure/template.yaml --s3-bucket esgis-chatbot-artifacts --output-template-file packaged.yaml
+                        # Configurer les informations d'identification AWS
+                        export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+                        export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+                        export AWS_DEFAULT_REGION=eu-west-3
+                        
+                        # Empaqueter le template CloudFormation
+                        BUCKET_NAME="esgis-chatbot-artifacts-${BRANCH_NAME}"
+                        aws cloudformation package \
+                            --template-file infrastructure/template.yaml \
+                            --s3-bucket $BUCKET_NAME \
+                            --output-template-file packaged.yaml
                     """
                     
                     // Copier les fichiers générés
-                    sh "if [ -d '/tmp/project/.aws-sam' ]; then cp -r /tmp/project/.aws-sam .; fi"
-                    sh "if [ -f '/tmp/project/packaged.yaml' ]; then cp /tmp/project/packaged.yaml .; fi"
+                    sh "cp /tmp/project/packaged.yaml ."
                 }
             }
         }
@@ -151,24 +167,16 @@ pipeline {
                     export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
                     export AWS_DEFAULT_REGION=eu-west-3
                     
-                    # Installer SAM CLI si nécessaire
-                    pip3 install --user aws-sam-cli
-                    export PATH=$PATH:~/.local/bin
-                    
-                    if [ -d ".aws-sam/build" ]; then
-                        # Déployer avec SAM CLI
-                        sam deploy --stack-name esgis-chatbot-${BRANCH_NAME} \\
-                        --no-fail-on-empty-changeset \\
-                        --parameter-overrides EnvironmentName=${BRANCH_NAME}
-                    elif [ -f "packaged.yaml" ]; then
+                    if [ -f "packaged.yaml" ]; then
                         # Déployer avec CloudFormation
-                        aws cloudformation deploy \\
-                        --template-file packaged.yaml \\
-                        --stack-name esgis-chatbot-${BRANCH_NAME} \\
-                        --parameter-overrides EnvironmentName=${BRANCH_NAME} \\
-                        --capabilities CAPABILITY_IAM
+                        echo "Déploiement avec CloudFormation..."
+                        aws cloudformation deploy \
+                            --template-file packaged.yaml \
+                            --stack-name esgis-chatbot-${BRANCH_NAME} \
+                            --parameter-overrides EnvironmentName=${BRANCH_NAME} \
+                            --capabilities CAPABILITY_IAM
                     else
-                        echo "Ni .aws-sam/build ni packaged.yaml trouvé, ignorant le déploiement"
+                        echo "Fichier packaged.yaml non trouvé, ignorant le déploiement"
                     fi
                     """
                 }
