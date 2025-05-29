@@ -1,11 +1,16 @@
 import { createApp, getDatabaseAdapter } from './app';
-import dotenv from 'dotenv';
+import { config, validateEnv } from './config/env';
 
-// Load environment variables
-dotenv.config();
+// Vérifier que les variables d'environnement requises sont définies
+const missingVars = validateEnv();
+if (missingVars.length > 0) {
+  console.error(`Variables d'environnement manquantes : ${missingVars.join(', ')}`);
+  console.error('Veuillez définir ces variables dans le fichier .env');
+  process.exit(1);
+}
 
-// Get the port from environment variables or use default
-const PORT = process.env.PORT || 3000;
+// Obtenir le port depuis la configuration
+const PORT = config.server.port;
 
 // Get the appropriate database adapter
 const dbAdapter = getDatabaseAdapter();

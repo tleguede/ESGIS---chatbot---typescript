@@ -1,18 +1,18 @@
 import axios from 'axios';
-import dotenv from 'dotenv';
-
-dotenv.config();
+import { config } from '../config/env';
 
 /**
  * Client for interacting with the Mistral AI API
  */
 export class MistralClient {
   private apiKey: string;
-  private baseUrl: string = 'https://api.mistral.ai/v1';
-  private model: string = 'mistral-medium';
+  private baseUrl: string;
+  private model: string;
 
   constructor() {
-    this.apiKey = process.env.MISTRAL_API_KEY || '';
+    this.apiKey = config.mistral.apiKey;
+    this.baseUrl = config.mistral.baseUrl;
+    this.model = config.mistral.model;
     
     if (!this.apiKey) {
       console.warn('MISTRAL_API_KEY is not set in environment variables');

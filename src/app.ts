@@ -1,14 +1,11 @@
 import express, { Express, Request, Response } from 'express';
-import dotenv from 'dotenv';
 import { createChatRouter } from './routes/chat.route';
 import { ChatController } from './controllers/chat.controller';
 import { TelegramService } from './services/telegramService';
 import { DatabaseAdapter } from './db/dbAdapter';
 import { MemoryAdapter } from './db/adapters/memoryAdapter';
 import { PrismaAdapter } from './db/adapters/prismaAdapter';
-
-// Load environment variables
-dotenv.config();
+import { config } from './config/env';
 
 /**
  * Create and configure the Express application
@@ -46,7 +43,7 @@ export function createApp(dbAdapter: DatabaseAdapter): Express {
  */
 export function getDatabaseAdapter(): DatabaseAdapter {
   // Check if we should use the memory adapter
-  if (process.env.USE_MEMORY_ADAPTER === 'true') {
+  if (config.database.useMemoryAdapter) {
     console.log('Using memory adapter for database storage');
     return new MemoryAdapter();
   }

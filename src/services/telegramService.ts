@@ -1,9 +1,7 @@
 import TelegramBot from 'node-telegram-bot-api';
-import dotenv from 'dotenv';
 import { DatabaseAdapter } from '../db/dbAdapter';
 import { MistralClient } from './mistralClient';
-
-dotenv.config();
+import { config } from '../config/env';
 
 /**
  * Service for handling Telegram bot interactions
@@ -15,7 +13,7 @@ export class TelegramService {
   private chatMode: Map<number, boolean> = new Map(); // Track which chats are in chat mode
 
   constructor(dbAdapter: DatabaseAdapter) {
-    const token = process.env.TELEGRAM_BOT_TOKEN || '';
+    const token = config.telegram.botToken;
     
     if (!token) {
       throw new Error('TELEGRAM_BOT_TOKEN is not set in environment variables');
