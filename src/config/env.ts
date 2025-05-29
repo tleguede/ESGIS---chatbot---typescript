@@ -39,10 +39,13 @@ export const config = {
     
     // DynamoDB (optionnel)
     aws: {
-      region: process.env.AWS_REGION || '',
+      region: process.env.AWS_REGION_NAME || 'eu-west-3',
       accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
-      dynamoTable: process.env.DYNAMODB_TABLE || '',
+      dynamoTable: process.env.DYNAMO_TABLE || '',
+      profile: process.env.AWS_PROFILE || 'esgis_profile',
+      envName: process.env.ENV_NAME || 'tleguede-dev',
+      isLambdaEnvironment: Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME),
     },
   },
 };

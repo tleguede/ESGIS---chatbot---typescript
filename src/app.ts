@@ -5,6 +5,7 @@ import { TelegramService } from './services/telegramService';
 import { DatabaseAdapter } from './db/dbAdapter';
 import { MemoryAdapter } from './db/adapters/memoryAdapter';
 import { PrismaAdapter } from './db/adapters/prismaAdapter';
+import { DynamoAdapter } from './db/adapters/dynamoAdapter';
 import { config } from './config/env';
 
 /**
@@ -46,6 +47,12 @@ export function getDatabaseAdapter(): DatabaseAdapter {
   if (config.database.useMemoryAdapter) {
     console.log('Using memory adapter for database storage');
     return new MemoryAdapter();
+  }
+
+  // Check if we should use DynamoDB (environnement AWS Lambda)
+  if (config.database.aws.isLambdaEnvironment) {
+    console.log('Using DynamoDB adapter for database storage');
+    return new DynamoAdapter();
   }
 
   // Default to Prisma adapter

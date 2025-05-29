@@ -1,0 +1,100 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::Serverless-2016-10-31
+Description: AWS CloudFormation Template pour le Chatbot Telegram avec Mistral AI (TypeScript)
+
+###############################################################################
+Parameters:
+###############################################################################
+  EnvironmentName:
+    Description: Nom de l'environnement pour l'application dev/staging/production
+    Type: String
+    AllowedValues:
+      - tleguede
+      - dev
+      - preprod
+      - prod
+      - tleguede-dev
+      - tleguede-preprod
+      - tleguede-prod
+
+###############################################################################
+Resources:
+###############################################################################
+  DynamoDBTable:
+    Type: "AWS::DynamoDB::Table"
+    Properties:
+      TableName: !Sub "chatbot-dbtable-${EnvironmentName}"
+      AttributeDefinitions:
+        - AttributeName: "PK"
+          AttributeType: "S"
+        - AttributeName: "SK"
+          AttributeType: "S"
+        - AttributeName: "conversation_id"
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: "PK"
+          KeyType: "HASH"
+        - AttributeName: "SK"
+          KeyType: "RANGE"
+      GlobalSecondaryIndexes:
+        - IndexName: "conversation-index"
+          KeySchema:
+            - AttributeName: "conversation_id"
+              KeyType: "HASH"
+          Projection:
+            ProjectionType: "ALL"
+          ProvisionedThroughput:
+            ReadCapacityUnits: 5
+            WriteCapacityUnits: 5
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+
+  Function:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "chatbot-lambda-${EnvironmentName}"
+      CodeUri: ../
+      Handler: dist/lambda.handler
+      Runtime: nodejs18.x
+      Timeout: 30
+      MemorySize: 256
+      Environment:
+        Variables:
+          NODE_ENV: !Ref EnvironmentName
+          TELEGRAM_BOT_TOKEN: "{{resolve:secretsmanager:telegram-bot-token:SecretString:TELEGRAM_BOT_TOKEN}}"
+          MISTRAL_API_KEY: "{{resolve:secretsmanager:mistral-api-key:SecretString:MISTRAL_API_KEY}}"
+          DYNAMODB_TABLE: !Ref DynamoDBTable
+          AWS_REGION_NAME: !Ref "AWS::Region"
+          ENV_NAME: !Ref EnvironmentName
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DynamoDBTable
+
+  Api:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      Name: !Sub "chatbot-apigateway-${EnvironmentName}"
+      CorsConfiguration:
+        AllowOrigins:
+          - "*"
+        AllowHeaders:
+          - "Content-Type"
+          - "Authorization"
+        AllowMethods:
+          - GET
+          - POST
+          - OPTIONS
+
+Outputs:
+  DynamoDBTableName:
+    Value: !Ref DynamoDBTable
+  ApiUrl:
+    Description: URL de votre API
+    Value:
+      Fn::Sub: 'https://${Api}.execute-api.${AWS::Region}.${AWS::URLSuffix}/'
