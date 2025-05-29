@@ -16,6 +16,21 @@ pipeline {
     }
 
     stages {
+        stage('Installation des outils') {
+            steps {
+                script {
+                    echo "Installation des outils nécessaires..."
+                    sh """
+                        # Installer AWS CLI
+                        apt-get update
+                        apt-get install -y python3-pip unzip curl
+                        pip3 install awscli --upgrade
+                        aws --version
+                    """
+                }
+            }
+        }
+
         stage('Installation des dépendances') {
             steps {
                 script {
@@ -71,8 +86,23 @@ pipeline {
                         # Créer un nom de branche sécurisé pour les ressources AWS
                         BRANCH_SAFE=\$(echo "${BRANCH_NAME}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g')
                         
-                        # Déployer avec les variables d'environnement du fichier .env
-                        npm run deploy:ci -- --stack-name esgis-chatbot-\$BRANCH_SAFE --parameter-overrides EnvironmentName=\$BRANCH_SAFE
+                        # Créer un bucket S3 pour les artefacts de déploiement si nécessaire
+                        BUCKET_NAME="esgis-chatbot-artifacts-\$BRANCH_SAFE"
+                        aws s3api head-bucket --bucket \$BUCKET_NAME 2>/dev/null || aws s3 mb s3://\$BUCKET_NAME
+                        
+                        # Empaqueter le template CloudFormation
+                        aws cloudformation package \
+                            --template-file infrastructure/template.yaml \
+                            --s3-bucket \$BUCKET_NAME \
+                            --output-template-file packaged.yaml
+                        
+                        # Déployer avec CloudFormation
+                        aws cloudformation deploy \
+                            --template-file packaged.yaml \
+                            --stack-name esgis-chatbot-\$BRANCH_SAFE \
+                            --parameter-overrides EnvironmentName=\$BRANCH_SAFE \
+                            --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
+                            --no-fail-on-empty-changeset
                     """
                 }
             }
