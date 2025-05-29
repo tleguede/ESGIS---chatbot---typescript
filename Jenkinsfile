@@ -1,5 +1,5 @@
 pipeline {
-    agent any
+    agent none
 
     options {
         ansiColor('xterm')
@@ -15,31 +15,38 @@ pipeline {
 
     stages {
         stage('Configuration de l\'environnement') {
+            agent {
+                docker {
+                    image 'node:18'
+                    args '-v $HOME/.npm:/root/.npm'
+                }
+            }
             steps {
                 sh "echo Branch name ${BRANCH_NAME}"
-                
-                // Vérifier si Node.js est installé
-                sh '''
-                    if ! command -v node &> /dev/null; then
-                        echo "Node.js n'est pas installé, installation en cours..."
-                        curl -sL https://deb.nodesource.com/setup_18.x | bash -
-                        apt-get update && apt-get install -y nodejs
-                    fi
-                    
-                    # Afficher les versions
-                    node --version
-                    npm --version
-                '''
+                sh "node --version"
+                sh "npm --version"
             }
         }
         
         stage('Installation des dépendances') {
+            agent {
+                docker {
+                    image 'node:18'
+                    args '-v $HOME/.npm:/root/.npm'
+                }
+            }
             steps {
                 sh "npm install"
             }
         }
 
         stage('Injection des variables d\'environnement'){
+            agent {
+                docker {
+                    image 'node:18'
+                    args '-v $HOME/.npm:/root/.npm'
+                }
+            }
             steps {
                 script{
                     withCredentials([file(credentialsId: 'tleguede-chatbot-env-file', variable: 'ENV_FILE')]) {
@@ -50,6 +57,12 @@ pipeline {
         }
 
         stage('Linting') {
+            agent {
+                docker {
+                    image 'node:18'
+                    args '-v $HOME/.npm:/root/.npm'
+                }
+            }
             steps {
                 script {
                     echo "Vérification du code avec ESLint..."
@@ -59,6 +72,12 @@ pipeline {
         }
 
         stage('Tests Unitaires') {
+            agent {
+                docker {
+                    image 'node:18'
+                    args '-v $HOME/.npm:/root/.npm'
+                }
+            }
             steps {
                 script {
                     echo "Exécution des tests..."
@@ -68,6 +87,12 @@ pipeline {
         }
 
         stage('Build') {
+            agent {
+                docker {
+                    image 'node:18'
+                    args '-v $HOME/.npm:/root/.npm'
+                }
+            }
             steps {
                 script {
                     echo "Compilation du projet TypeScript..."
@@ -80,12 +105,18 @@ pipeline {
         }
 
         stage('Deploy') {
+            agent {
+                docker {
+                    image 'node:18'
+                    args '-v $HOME/.npm:/root/.npm'
+                }
+            }
             steps {
                 script {
                     echo "Déploiement du projet..."
                     sh """
                     if [ -d ".aws-sam/build" ]; then
-                        npm run deploy:ci -- --stack-name multi-stack-${BRANCH_NAME} \
+                        npm run deploy:ci -- --stack-name multi-stack-${BRANCH_NAME} \\
                         --parameter-overrides EnvironmentName=${BRANCH_NAME}
                     else
                         echo "Dossier .aws-sam/build non trouvé, ignorant le déploiement"
@@ -96,17 +127,26 @@ pipeline {
         }
 
         stage('Test endpoint'){
+            agent {
+                docker {
+                    image 'node:18'
+                    args '-v $HOME/.npm:/root/.npm'
+                }
+            }
             steps {
                 script {
-                    echo "Test de l'endpoint..."
+                    echo "Test de l'endpoint déployé..."
                     sh """
-                    if aws cloudformation describe-stacks --stack-name multi-stack-${BRANCH_NAME} --region eu-west-3 2>/dev/null; then
-                        aws cloudformation describe-stacks --stack-name multi-stack-${BRANCH_NAME} \
-                        --region eu-west-3 \
-                        --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" \
-                        --output text | xargs -I {} curl -X GET {}
+                    if [ -d ".aws-sam/build" ]; then
+                        ENDPOINT_URL=\$(aws cloudformation describe-stacks --stack-name multi-stack-${BRANCH_NAME} --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" --output text)
+                        if [ -n "\$ENDPOINT_URL" ]; then
+                            echo "Testing endpoint: \$ENDPOINT_URL"
+                            curl -s \$ENDPOINT_URL
+                        else
+                            echo "Endpoint URL not found in CloudFormation outputs"
+                        fi
                     else
-                        echo "Stack AWS non trouvé, ignorant le test d'endpoint"
+                        echo "Dossier .aws-sam/build non trouvé, ignorant le test d'endpoint"
                     fi
                     """
                 }
