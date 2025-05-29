@@ -7,6 +7,7 @@ import { MemoryAdapter } from './db/adapters/memoryAdapter';
 import { PrismaAdapter } from './db/adapters/prismaAdapter';
 import { DynamoAdapter } from './db/adapters/dynamoAdapter';
 import { config } from './config/env';
+import { setupSwagger } from './config/swagger';
 
 /**
  * Create and configure the Express application
@@ -19,19 +20,16 @@ export function createApp(dbAdapter: DatabaseAdapter): Express {
   // Middleware
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
+  
+  // Configurer Swagger
+  setupSwagger(app);
 
   // Create services and controllers
   const telegramService = new TelegramService(dbAdapter);
   const chatController = new ChatController(telegramService);
 
   // Routes
-  app.get('/', (req: Request, res: Response) => {
-    res.json({
-      name: 'Telegram Chatbot API',
-      version: '1.0.0',
-      description: 'API for interfacing between Telegram and Mistral AI'
-    });
-  });
+  // La route racine est maintenant gérée par Swagger
 
   app.use('/chat', createChatRouter(chatController));
 
