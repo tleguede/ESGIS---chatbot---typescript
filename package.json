@@ -9,9 +9,9 @@
     "build": "tsc",
     "lint": "eslint . --ext .ts",
     "test": "echo \"No tests specified\" && exit 0",
-    "deploy": "sam deploy --guided",
-    "deploy:ci": "sam deploy --stack-name esgis-chatbot --no-fail-on-empty-changeset",
-    "local:api": "sam local start-api"
+    "deploy": "sam deploy --guided --template-file infrastructure/template.yaml",
+    "deploy:ci": "sam deploy --stack-name esgis-chatbot --no-fail-on-empty-changeset --template-file infrastructure/template.yaml",
+    "local:api": "sam local start-api --template-file infrastructure/template.yaml"
   },
   "keywords": [
     "telegram",

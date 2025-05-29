@@ -76,101 +76,61 @@ pipeline {
             }
         }
 
-        stage('Deploy') {
+        stage('Build et Packaging') {
             steps {
                 script {
-                    echo "Déploiement du projet..."
-                    // Utiliser directement les variables d'environnement du fichier .env injecté précédemment
+                    echo "Construction et packaging du projet..."
                     sh """
-                        # Créer un nom de branche sécurisé pour les ressources AWS
+                        # Créer un nom de branche sécurisé pour les ressources
                         BRANCH_SAFE=\$(echo "${BRANCH_NAME}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g')
                         
                         # Compiler le projet TypeScript
                         npm run build
                         
-                        # Créer un bucket S3 temporaire pour le déploiement
-                        DEPLOYMENT_BUCKET="esgis-chatbot-deploy-\$BRANCH_SAFE"
+                        # Créer un package de déploiement
+                        echo "Création d'un package de déploiement..."
+                        mkdir -p deployment-package
+                        cp -r dist package.json package-lock.json node_modules infrastructure deployment-package/
                         
-                        # Vérifier si le bucket existe déjà
-                        if ! aws s3api head-bucket --bucket \$DEPLOYMENT_BUCKET 2>/dev/null; then
-                            echo "Le bucket n'existe pas, vérification des permissions..."
-                            # Essayer de lister les buckets pour vérifier les permissions
-                            aws s3 ls
-                            echo "Utilisation d'un bucket existant..."
-                            
-                            # Trouver un bucket existant que nous pouvons utiliser
-                            EXISTING_BUCKETS=\$(aws s3 ls | awk '{print \$3}')
-                            if [ -n "\$EXISTING_BUCKETS" ]; then
-                                DEPLOYMENT_BUCKET=\$(echo "\$EXISTING_BUCKETS" | head -n 1)
-                                echo "Utilisation du bucket existant: \$DEPLOYMENT_BUCKET"
-                            else
-                                echo "Aucun bucket S3 disponible. Utilisation d'un déploiement local."
-                                DEPLOYMENT_BUCKET=""
-                            fi
-                        fi
+                        # Créer une archive pour le déploiement
+                        tar -czf esgis-chatbot-\$BRANCH_SAFE.tar.gz -C deployment-package .
                         
-                        # Empaqueter et déployer l'application
-                        if [ -n "\$DEPLOYMENT_BUCKET" ]; then
-                            echo "Déploiement avec bucket S3: \$DEPLOYMENT_BUCKET"
-                            # Empaqueter le template CloudFormation
-                            aws cloudformation package \
-                                --template-file infrastructure/template.yaml \
-                                --s3-bucket \$DEPLOYMENT_BUCKET \
-                                --output-template-file packaged.yaml
-                            
-                            # Déployer avec CloudFormation
-                            aws cloudformation deploy \
-                                --template-file packaged.yaml \
-                                --stack-name esgis-chatbot-\$BRANCH_SAFE \
-                                --parameter-overrides EnvironmentName=\$BRANCH_SAFE \
-                                --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
-                                --no-fail-on-empty-changeset
-                        else
-                            echo "Déploiement sans bucket S3 (mode limité)"
-                            # Créer un package zip local
-                            mkdir -p .aws-sam/build
-                            cp -r dist/* .aws-sam/build/
-                            cp package.json .aws-sam/build/
-                            
-                            # Déployer directement le code (sans Lambda layers ou ressources complexes)
-                            echo "Le déploiement complet nécessite AWS SAM CLI ou un bucket S3 avec permissions."
-                            echo "Veuillez configurer les permissions appropriées ou installer SAM CLI dans l'environnement Jenkins."
-                        fi
+                        echo "Package de déploiement créé: esgis-chatbot-\$BRANCH_SAFE.tar.gz"
+                        echo "Ce package peut être déployé manuellement avec la commande:"
+                        echo "sam deploy --guided --template-file infrastructure/template.yaml"
                     """
+                    
+                    // Archiver le package pour téléchargement depuis Jenkins
+                    archiveArtifacts artifacts: '*.tar.gz', fingerprint: true
                 }
             }
         }
 
-        stage('Test endpoint'){
+        stage('Vérification du package'){
             steps {
                 script {
-                    echo "Test de l'endpoint déployé..."
-                    // Utiliser directement les variables d'environnement du fichier .env injecté précédemment
+                    echo "Vérification du package de déploiement..."
                     sh """
-                        # Créer un nom de branche sécurisé pour les ressources AWS
+                        # Créer un nom de branche sécurisé pour les ressources
                         BRANCH_SAFE=\$(echo "${BRANCH_NAME}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g')
                         
-                        # Récupérer l'URL de l'API
-                        echo "Récupération de l'URL de l'API depuis CloudFormation..."
-                        STACK_NAME="esgis-chatbot-\$BRANCH_SAFE"
-                        
-                        # Vérifier si le stack existe
-                        if aws cloudformation describe-stacks --stack-name \$STACK_NAME > /dev/null 2>&1; then
-                            # Récupérer l'URL de l'API depuis les outputs CloudFormation
-                            ENDPOINT_URL=\$(aws cloudformation describe-stacks \\
-                                --stack-name \$STACK_NAME \\
-                                --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" \\
-                                --output text)
+                        # Vérifier que le package a été créé correctement
+                        if [ -f "esgis-chatbot-\$BRANCH_SAFE.tar.gz" ]; then
+                            echo "Package vérifié: esgis-chatbot-\$BRANCH_SAFE.tar.gz"
+                            echo "Taille: \$(du -h esgis-chatbot-\$BRANCH_SAFE.tar.gz | cut -f1)"
                             
-                            if [ -n "\$ENDPOINT_URL" ]; then
-                                echo "Testing endpoint: \$ENDPOINT_URL"
-                                curl -s \$ENDPOINT_URL
-                                echo "\nTest de l'endpoint terminé."
-                            else
-                                echo "Aucune URL d'API trouvée dans les outputs du stack."
-                            fi
+                            # Lister le contenu de l'archive pour vérification
+                            echo "\nContenu du package:"
+                            tar -tvf esgis-chatbot-\$BRANCH_SAFE.tar.gz | grep -E 'infrastructure|dist|package.json' | head -10
+                            
+                            echo "\nLe package est prêt à être déployé manuellement."
+                            echo "Instructions de déploiement:"
+                            echo "1. Télécharger le package depuis Jenkins"
+                            echo "2. Extraire avec: tar -xzf esgis-chatbot-\$BRANCH_SAFE.tar.gz"
+                            echo "3. Déployer avec: sam deploy --guided --template-file infrastructure/template.yaml"
                         else
-                            echo "Le stack \$STACK_NAME n'existe pas ou n'est pas accessible."
+                            echo "ERREUR: Le package n'a pas été créé correctement."
+                            exit 1
                         fi
                     """
                 }
