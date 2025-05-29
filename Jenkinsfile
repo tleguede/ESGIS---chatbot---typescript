@@ -18,7 +18,7 @@ pipeline {
             agent {
                 docker {
                     image 'node:18'
-                    args '-v $HOME/.npm:/root/.npm'
+                    args '--user root'
                 }
             }
             steps {
@@ -32,7 +32,7 @@ pipeline {
             agent {
                 docker {
                     image 'node:18'
-                    args '-v $HOME/.npm:/root/.npm'
+                    args '--user root'
                 }
             }
             steps {
@@ -44,7 +44,7 @@ pipeline {
             agent {
                 docker {
                     image 'node:18'
-                    args '-v $HOME/.npm:/root/.npm'
+                    args '--user root'
                 }
             }
             steps {
@@ -60,7 +60,7 @@ pipeline {
             agent {
                 docker {
                     image 'node:18'
-                    args '-v $HOME/.npm:/root/.npm'
+                    args '--user root'
                 }
             }
             steps {
@@ -75,7 +75,7 @@ pipeline {
             agent {
                 docker {
                     image 'node:18'
-                    args '-v $HOME/.npm:/root/.npm'
+                    args '--user root'
                 }
             }
             steps {
@@ -90,7 +90,7 @@ pipeline {
             agent {
                 docker {
                     image 'node:18'
-                    args '-v $HOME/.npm:/root/.npm'
+                    args '--user root'
                 }
             }
             steps {
@@ -108,7 +108,7 @@ pipeline {
             agent {
                 docker {
                     image 'node:18'
-                    args '-v $HOME/.npm:/root/.npm'
+                    args '--user root'
                 }
             }
             steps {
@@ -130,7 +130,7 @@ pipeline {
             agent {
                 docker {
                     image 'node:18'
-                    args '-v $HOME/.npm:/root/.npm'
+                    args '--user root'
                 }
             }
             steps {
