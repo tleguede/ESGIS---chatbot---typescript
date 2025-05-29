@@ -105,7 +105,7 @@ export class DynamoAdapter implements DatabaseAdapter {
           KeyConditionExpression: 'PK = :pk AND begins_with(SK, :prefix)',
           ExpressionAttributeValues: {
             ':pk': `USER#${chatId}`,
-            ':prefix': 'MSG#'
+            ':prefix': 'CONV#'
           },
           ScanIndexForward: false, // Du plus récent au plus ancien
           Limit: 1 // Nous n'avons besoin que du message le plus récent
@@ -162,14 +162,14 @@ export class DynamoAdapter implements DatabaseAdapter {
    */
   async getConversationHistoryById(chatId: number, conversationId: string, limit: number = 50): Promise<any[]> {
     try {
-      // Utiliser l'index secondaire global sur conversation_id pour éviter les scans
+      // Utiliser directement la table principale avec la structure de clé optimisée
       const response = await this.client.send(
         new QueryCommand({
           TableName: this.tableName,
-          IndexName: 'conversation-index',
-          KeyConditionExpression: 'conversation_id = :cid',
+          KeyConditionExpression: 'PK = :pk AND begins_with(SK, :skPrefix)',
           ExpressionAttributeValues: {
-            ':cid': conversationId
+            ':pk': `USER#${chatId}`,
+            ':skPrefix': `CONV#${conversationId}#MSG#`
           },
           Limit: limit,
           ScanIndexForward: true // Ordre chronologique
@@ -205,7 +205,7 @@ export class DynamoAdapter implements DatabaseAdapter {
         TableName: this.tableName,
         Item: {
           PK: `USER#${chatId}`,
-          SK: `MSG#${timestamp}`,
+          SK: `CONV#${conversationId}#MSG#${timestamp}`,
           conversation_id: conversationId,
           username,
           from: 'user',
@@ -238,7 +238,7 @@ export class DynamoAdapter implements DatabaseAdapter {
         TableName: this.tableName,
         Item: {
           PK: `USER#${chatId}`,
-          SK: `MSG#${timestamp}`,
+          SK: `CONV#${conversationId}#MSG#${timestamp}`,
           conversation_id: conversationId,
           username: 'bot',
           from: 'bot',
