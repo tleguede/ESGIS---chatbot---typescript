@@ -48,7 +48,7 @@ export class TelegramService {
     // Handle /start command
     this.bot.onText(/\/start/, async (msg) => {
       const chatId = msg.chat.id;
-      const username = msg.from?.username || 'user';
+      const _username = msg.from?.username || 'user';
       
       const welcomeMessage = 'Hello! I am your AI assistant powered by Mistral AI. How can I help you today?\n\n' +
         'Use /chat to start a conversation with me\n' +
@@ -61,7 +61,7 @@ export class TelegramService {
     // Handle /chat command
     this.bot.onText(/\/chat/, async (msg) => {
       const chatId = msg.chat.id;
-      const username = msg.from?.username || 'user';
+      const _username = msg.from?.username || 'user';
       
       this.chatMode.set(chatId, true);
       

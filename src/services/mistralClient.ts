@@ -36,7 +36,13 @@ export class MistralClient {
         content: prompt
       });
 
-      const response = await axios.post(
+      const response = await axios.post<{
+        choices: Array<{
+          message: {
+            content: string
+          }
+        }>
+      }>(
         `${this.baseUrl}/chat/completions`,
         {
           model: this.model,
@@ -53,10 +59,14 @@ export class MistralClient {
       );
 
       return response.data.choices[0].message.content;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error calling Mistral API:', error);
-      if (axios.isAxiosError(error) && error.response) {
-        console.error('API response:', error.response.data);
+      // Vérifier si l'erreur est une erreur Axios
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data: unknown } };
+        if (axiosError.response) {
+          console.error('API response:', axiosError.response.data);
+        }
       }
       return 'Sorry, I encountered an error while processing your request.';
     }
