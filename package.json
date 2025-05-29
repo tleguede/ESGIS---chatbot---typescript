@@ -7,7 +7,7 @@
     "start": "node dist/index.js",
     "dev": "nodemon --exec ts-node src/index.ts",
     "build": "tsc",
-    "lint": "eslint . --ext .ts",
+    "lint": "eslint . --ext .ts", 
     "test": "echo \"No tests specified\" && exit 0",
     "deploy": "sam deploy --guided --template-file infrastructure/template.yaml",
     "deploy:ci": "sam deploy --stack-name esgis-chatbot --no-fail-on-empty-changeset --template-file infrastructure/template.yaml",
