@@ -97,9 +97,28 @@ pipeline {
                 script {
                     echo "Compilation du projet TypeScript..."
                     sh "npm run build"
+                }
+            }
+        }
+        
+        stage('AWS SAM Build') {
+            agent {
+                docker {
+                    image 'amazon/aws-sam-cli:latest'
+                    args '--user root -e HOME=/tmp'
+                }
+            }
+            steps {
+                script {
+                    // Copier les fichiers du projet dans le conteneur SAM
+                    sh "cp -r . /tmp/project"
+                    sh "cd /tmp/project && ls -la"
                     
                     echo "Construction du package AWS SAM..."
-                    sh "aws-sam-cli build --use-container -t infrastructure/template.yaml || echo 'AWS SAM CLI non disponible, ignorant cette étape'"
+                    sh "cd /tmp/project && sam build -t infrastructure/template.yaml || echo 'Erreur lors de la construction SAM'"
+                    
+                    // Copier le dossier .aws-sam s'il existe
+                    sh "if [ -d '/tmp/project/.aws-sam' ]; then cp -r /tmp/project/.aws-sam .; fi"
                 }
             }
         }
@@ -107,8 +126,8 @@ pipeline {
         stage('Deploy') {
             agent {
                 docker {
-                    image 'node:18'
-                    args '--user root'
+                    image 'amazon/aws-sam-cli:latest'
+                    args '--user root -e HOME=/tmp'
                 }
             }
             steps {
@@ -116,7 +135,14 @@ pipeline {
                     echo "Déploiement du projet..."
                     sh """
                     if [ -d ".aws-sam/build" ]; then
-                        npm run deploy:ci -- --stack-name multi-stack-${BRANCH_NAME} \\
+                        # Configurer les informations d'identification AWS
+                        export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+                        export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+                        export AWS_DEFAULT_REGION=eu-west-3
+                        
+                        # Déployer avec SAM CLI
+                        sam deploy --stack-name esgis-chatbot-${BRANCH_NAME} \\
+                        --no-fail-on-empty-changeset \\
                         --parameter-overrides EnvironmentName=${BRANCH_NAME}
                     else
                         echo "Dossier .aws-sam/build non trouvé, ignorant le déploiement"
@@ -129,8 +155,8 @@ pipeline {
         stage('Test endpoint'){
             agent {
                 docker {
-                    image 'node:18'
-                    args '--user root'
+                    image 'amazon/aws-sam-cli:latest'
+                    args '--user root -e HOME=/tmp'
                 }
             }
             steps {
@@ -138,7 +164,13 @@ pipeline {
                     echo "Test de l'endpoint déployé..."
                     sh """
                     if [ -d ".aws-sam/build" ]; then
-                        ENDPOINT_URL=\$(aws cloudformation describe-stacks --stack-name multi-stack-${BRANCH_NAME} --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" --output text)
+                        # Configurer les informations d'identification AWS
+                        export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+                        export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+                        export AWS_DEFAULT_REGION=eu-west-3
+                        
+                        # Récupérer l'URL de l'endpoint
+                        ENDPOINT_URL=\$(aws cloudformation describe-stacks --stack-name esgis-chatbot-${BRANCH_NAME} --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" --output text)
                         if [ -n "\$ENDPOINT_URL" ]; then
                             echo "Testing endpoint: \$ENDPOINT_URL"
                             curl -s \$ENDPOINT_URL
