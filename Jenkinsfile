@@ -85,23 +85,16 @@ pipeline {
                         # Créer un nom de branche sécurisé pour les ressources AWS
                         BRANCH_SAFE=\$(echo "${BRANCH_NAME}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g')
                         
-                        # Créer un bucket S3 pour les artefacts de déploiement si nécessaire
-                        BUCKET_NAME="esgis-chatbot-artifacts-\$BRANCH_SAFE"
-                        aws s3api head-bucket --bucket \$BUCKET_NAME 2>/dev/null || aws s3 mb s3://\$BUCKET_NAME
+                        # Compiler le projet TypeScript
+                        npm run build
                         
-                        # Empaqueter le template CloudFormation
-                        aws cloudformation package \
-                            --template-file infrastructure/template.yaml \
-                            --s3-bucket \$BUCKET_NAME \
-                            --output-template-file packaged.yaml
+                        # Créer un package de déploiement
+                        mkdir -p deployment
+                        cp -r dist package.json package-lock.json node_modules deployment/
                         
-                        # Déployer avec CloudFormation
-                        aws cloudformation deploy \
-                            --template-file packaged.yaml \
-                            --stack-name esgis-chatbot-\$BRANCH_SAFE \
-                            --parameter-overrides EnvironmentName=\$BRANCH_SAFE \
-                            --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
-                            --no-fail-on-empty-changeset
+                        # Déployer avec les scripts npm existants
+                        cd deployment
+                        npm run deploy -- --stack-name esgis-chatbot-\$BRANCH_SAFE --parameter-overrides EnvironmentName=\$BRANCH_SAFE
                     """
                 }
             }
@@ -117,16 +110,26 @@ pipeline {
                         BRANCH_SAFE=\$(echo "${BRANCH_NAME}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g')
                         
                         # Récupérer l'URL de l'API
-                        ENDPOINT_URL=\$(aws cloudformation describe-stacks \\
-                            --stack-name esgis-chatbot-\$BRANCH_SAFE \\
-                            --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" \\
-                            --output text 2>/dev/null || echo "")
+                        echo "Récupération de l'URL de l'API depuis CloudFormation..."
+                        STACK_NAME="esgis-chatbot-\$BRANCH_SAFE"
                         
-                        if [ -n "\$ENDPOINT_URL" ]; then
-                            echo "Testing endpoint: \$ENDPOINT_URL"
-                            curl -s \$ENDPOINT_URL
+                        # Vérifier si le stack existe
+                        if aws cloudformation describe-stacks --stack-name \$STACK_NAME > /dev/null 2>&1; then
+                            # Récupérer l'URL de l'API depuis les outputs CloudFormation
+                            ENDPOINT_URL=\$(aws cloudformation describe-stacks \\
+                                --stack-name \$STACK_NAME \\
+                                --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" \\
+                                --output text)
+                            
+                            if [ -n "\$ENDPOINT_URL" ]; then
+                                echo "Testing endpoint: \$ENDPOINT_URL"
+                                curl -s \$ENDPOINT_URL
+                                echo "\nTest de l'endpoint terminé."
+                            else
+                                echo "Aucune URL d'API trouvée dans les outputs du stack."
+                            fi
                         else
-                            echo "Endpoint URL non trouvé dans les outputs CloudFormation ou stack non déployé"
+                            echo "Le stack \$STACK_NAME n'existe pas ou n'est pas accessible."
                         fi
                     """
                 }
