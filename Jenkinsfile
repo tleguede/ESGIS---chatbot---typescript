@@ -66,8 +66,14 @@ pipeline {
             steps {
                 script {
                     echo "Déploiement du projet..."
-                    withAWS(region: AWS_REGION, credentials: 'aws-credentials') {
-                        sh "npm run deploy:ci -- --stack-name esgis-chatbot-${BRANCH_NAME} --parameter-overrides EnvironmentName=${BRANCH_NAME}"
+                    withCredentials([
+                        string(credentialsId: 'aws-access-key', variable: 'AWS_ACCESS_KEY_ID'),
+                        string(credentialsId: 'aws-secret-key', variable: 'AWS_SECRET_ACCESS_KEY')
+                    ]) {
+                        sh """
+                            export AWS_DEFAULT_REGION=${AWS_REGION}
+                            npm run deploy:ci -- --stack-name esgis-chatbot-${BRANCH_NAME} --parameter-overrides EnvironmentName=${BRANCH_NAME}
+                        """
                     }
                 }
             }
@@ -77,8 +83,13 @@ pipeline {
             steps {
                 script {
                     echo "Test de l'endpoint déployé..."
-                    withAWS(region: AWS_REGION, credentials: 'aws-credentials') {
+                    withCredentials([
+                        string(credentialsId: 'aws-access-key', variable: 'AWS_ACCESS_KEY_ID'),
+                        string(credentialsId: 'aws-secret-key', variable: 'AWS_SECRET_ACCESS_KEY')
+                    ]) {
                         sh """
+                            export AWS_DEFAULT_REGION=${AWS_REGION}
+                            
                             # Récupérer l'URL de l'API
                             ENDPOINT_URL=\$(aws cloudformation describe-stacks \\
                                 --stack-name esgis-chatbot-${BRANCH_NAME} \\
